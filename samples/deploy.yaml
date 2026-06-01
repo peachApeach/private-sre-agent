@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crash-loop-demo
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: crash-loop-demo
+  template:
+    metadata:
+      labels:
+        app: crash-loop-demo
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo 'ERROR service=payment-api exception=java.lang.OutOfMemoryError message="Java heap space"'
+              echo 'ERROR service=payment-api exception=SQLTransientConnectionException message="HikariPool-1 - Connection is not available, request timed out after 30000ms"'
+              exit 1
