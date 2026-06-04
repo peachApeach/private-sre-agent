@@ -40,6 +40,8 @@ from sre_agent.analyzers.deployment import (
     summarize_deployment,
 )
 
+from sre_agent.llm.providers import summarize_with_provider
+
 app = typer.Typer(help="Private SRE CLI agent")
 console = Console()
 
@@ -60,6 +62,11 @@ def analyze(
         "qwen2.5:3b",
         "--model",
         help="Ollama model name.",
+    ),
+    model_provider: str = typer.Option(
+        "ollama",
+        "--model-provider",
+        help="LLM provider: ollama or openai.",
     ),
     debug_patterns: bool = typer.Option(
         False,
@@ -260,7 +267,11 @@ def render_analysis_result(
     if not no_llm:
         console.print("\n[bold]AI Summary[/bold]\n")
         try:
-            summary = summarize_with_ollama(diagnosis, model=model)
+            summary = summarize_with_provider(
+                diagnosis,
+                provider=model_provider,
+                model=model,
+            )
             console.print(summary)
         except Exception as exc:
             console.print("[red]Failed to generate LLM summary.[/red]")
