@@ -1,0 +1,12 @@
+# ~/.sre-agent.yaml 설정 파일 예시
+# 이 파일을 ~/.sre-agent.yaml 으로 복사하여 사용하세요.
+# 우선순위: CLI 플래그 > 환경변수 > 이 파일 > 기본값
+
+# LLM provider: ollama | openai | openai-compat | anthropic
+provider: ollama
+
+# 사용할 모델 이름 (생략 시 provider 기본 모델 사용)
+# model: qwen2.5:3b
+
+# openai-compat provider 사용 시 엔드포인트 (vLLM, LM Studio 등)
+# base_url: http://localhost:8000/v1
