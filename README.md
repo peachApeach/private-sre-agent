@@ -335,10 +335,22 @@ sre_agent/
     └── diagnosis.py
 ```
 
+## 테스트
+
+```bash
+pip install pytest
+pytest tests/ -v
+```
+
+단위 테스트 커버리지:
+- `tests/test_redactor.py` — 민감정보 마스킹 패턴 검증
+- `tests/test_log_patterns.py` — 로그 신호 분류, 패턴 정규화
+- `tests/test_diagnosis.py` — rule engine 진단 리포트 생성
+
 ## 향후 작업
 
 - Unknown pattern 기반 rule suggestion 추가
-- 테스트 코드 추가
+- ~~테스트 코드 추가~~ (완료 — 37개 단위 테스트)
 - Deployment rollout history 분석 추가
 - Prometheus / Loki / OpenSearch 연동
 - `inspect --json` 결과를 Slack bot / 웹 UI와 연동
