@@ -73,7 +73,20 @@ def _run_openai_loop(config: AgentConfig, initial_message: str) -> str:
             tool_choice="auto",
         )
         msg = response.choices[0].message
-        messages.append(msg.model_dump(exclude_unset=False))
+
+        # tool_calls=None을 포함한 필드를 그대로 넣으면 일부 API가 오류를 냄.
+        # 필요한 필드만 명시적으로 구성한다.
+        assistant_msg: dict = {"role": "assistant", "content": msg.content or ""}
+        if msg.tool_calls:
+            assistant_msg["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                }
+                for tc in msg.tool_calls
+            ]
+        messages.append(assistant_msg)
 
         if not msg.tool_calls:
             return msg.content or ""
