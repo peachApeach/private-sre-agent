@@ -1,6 +1,7 @@
 import typer
 
 from sre_agent.commands.analyze import cmd_analyze
+from sre_agent.commands.config_cmd import cmd_config_set, cmd_config_show, cmd_config_unset
 from sre_agent.commands.deploy import cmd_inspect_deploy
 from sre_agent.commands.inspect import cmd_inspect
 from sre_agent.commands.klogs import cmd_klogs
@@ -23,6 +24,7 @@ def _print_help() -> None:
     t.add_row("inspect",        "POD",          "Pod 상태·이벤트·로그 종합 점검")
     t.add_row("inspect-deploy", "DEPLOYMENT",   "Deployment 전체 Pod 종합 점검")
     t.add_row("providers",      "",             "LLM provider 목록 및 설정 방법")
+    t.add_row("config",         "SUBCOMMAND",   "기본값 설정 (show / set / unset)")
     c.print(t)
 
     c.print("\n[bold]analyze[/bold] [FILE]")
@@ -129,6 +131,43 @@ def providers() -> None:
     console.print("[bold]~/.sre-agent.yaml 예시[/bold]")
     console.print("  [cyan]provider: anthropic[/cyan]")
     console.print("  [cyan]model: claude-haiku-4-5-20251001[/cyan]")
+
+
+config_app = typer.Typer(help="기본값 설정 (~/.sre-agent.yaml)")
+app.add_typer(config_app, name="config")
+
+
+@config_app.callback(invoke_without_command=True)
+def _config_default(ctx: typer.Context) -> None:
+    if ctx.invoked_subcommand is None:
+        cmd_config_show()
+
+
+@config_app.command("show")
+def config_show() -> None:
+    """현재 설정을 출력합니다."""
+    cmd_config_show()
+
+
+@config_app.command("set")
+def config_set(
+    key: str = typer.Argument(..., help="설정 키. provider | model | base_url"),
+    value: str = typer.Argument(..., help="설정 값"),
+) -> None:
+    """기본값을 ~/.sre-agent.yaml에 저장합니다.
+
+    예: sre-agent config set provider anthropic
+    예: sre-agent config set model claude-haiku-4-5-20251001
+    """
+    cmd_config_set(key, value)
+
+
+@config_app.command("unset")
+def config_unset(
+    key: str = typer.Argument(..., help="삭제할 키. provider | model | base_url"),
+) -> None:
+    """~/.sre-agent.yaml에서 키를 삭제합니다."""
+    cmd_config_unset(key)
 
 
 @app.command()
