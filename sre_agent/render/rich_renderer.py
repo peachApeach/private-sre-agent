@@ -114,20 +114,7 @@ def render_analysis_result(
         console.print(detail_table)
 
     if not no_llm:
-        if not raw_logs.strip():
-            console.print("[yellow]로그가 없어 LLM 분석을 건너뜁니다.[/yellow]")
-            return
-        console.print("\n[bold]AI 분석[/bold]\n")
-        try:
-            from rich.markdown import Markdown
-
-            rule_context = _build_rule_context(diagnosis)
-            llm_analysis = config.analyze_logs(logs=raw_logs, context=rule_context)
-            console.print(Markdown(llm_analysis))
-            run_chat_loop(initial_analysis=llm_analysis, config=config)
-        except Exception as exc:
-            console.print("[red]LLM 분석 실패.[/red]")
-            console.print(f"[yellow]{exc}[/yellow]")
+        run_llm_analysis_and_chat(raw_logs=raw_logs, log_result=result, config=config)
 
 
 def render_pod_inspect_summary(
@@ -422,6 +409,24 @@ def render_compact_deploy_result(
     console.print("\n[bold]다음 확인 액션[/bold]")
     for action in _dedupe(actions):
         console.print(f"- {action}")
+
+
+def run_llm_analysis_and_chat(raw_logs: str, log_result: dict, config) -> None:
+    """rule engine 결과 + 원본 로그를 LLM에 넘겨 분석 출력 후 대화 루프 진입."""
+    from rich.markdown import Markdown
+    if not raw_logs.strip():
+        console.print("[yellow]로그가 없어 LLM 분석을 건너뜁니다.[/yellow]")
+        return
+    from sre_agent.report.diagnosis import build_diagnosis_report
+    console.print("\n[bold]AI 분석[/bold]\n")
+    try:
+        diagnosis = build_diagnosis_report(log_result)
+        rule_context = _build_rule_context(diagnosis)
+        llm_analysis = config.analyze_logs(logs=raw_logs, context=rule_context)
+        console.print(Markdown(llm_analysis))
+        run_chat_loop(initial_analysis=llm_analysis, config=config)
+    except Exception as exc:
+        console.print(f"[red]LLM 분석 실패: {exc}[/red]")
 
 
 def run_chat_loop(initial_analysis: str, config) -> None:

@@ -123,16 +123,6 @@ def cmd_inspect(
             log_result=result,
             previous_logs_available=previous_logs_available,
         )
-        if not no_llm and redacted.strip():
-            from sre_agent.report.diagnosis import build_diagnosis_report
-            from sre_agent.render.rich_renderer import _build_rule_context, run_chat_loop
-            from rich.markdown import Markdown
-            console.print("\n[bold]AI 분석[/bold]\n")
-            try:
-                diagnosis = build_diagnosis_report(result)
-                rule_context = _build_rule_context(diagnosis)
-                llm_analysis = config.analyze_logs(logs=redacted, context=rule_context)
-                console.print(Markdown(llm_analysis))
-                run_chat_loop(initial_analysis=llm_analysis, config=config)
-            except Exception as exc:
-                console.print(f"[red]LLM 분석 실패: {exc}[/red]")
+        if not no_llm:
+            from sre_agent.render.rich_renderer import run_llm_analysis_and_chat
+            run_llm_analysis_and_chat(raw_logs=redacted, log_result=result, config=config)
