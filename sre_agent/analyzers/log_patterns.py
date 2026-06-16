@@ -153,7 +153,15 @@ def normalize_line(line: str) -> str:
     line = re.sub(r"version=\d+\.\d+\.\d+-\d+", "version=<version>", line)
     line = re.sub(r"HikariPool-\d+", "HikariPool-<num>", line)
     line = re.sub(r"after \d+ms", "after <num>ms", line)
-    line = re.sub(r":\d+", ":<port>", line)
+    # host:port 패턴 치환.
+    # 파일경로(.java:42, .kt:88) 및 소스 위치 키워드(line:, at:, row:, col:)는 제외
+    _PORT_SKIP = re.compile(r"(?:\.[a-zA-Z]{1,4}|line|at|row|col)$", re.IGNORECASE)
+    def _replace_port(m: re.Match) -> str:
+        prefix = m.group(1)
+        if _PORT_SKIP.search(prefix):
+            return m.group(0)
+        return prefix + ":<port>"
+    line = re.sub(r"([a-zA-Z0-9\-_\.]+):(\d{2,5})\b", _replace_port, line)
 
     line = re.sub(r"\b[0-9a-fA-F]{6,}\b", "<hex>", line)
     line = re.sub(r"\b\d+\b", "<num>", line)
