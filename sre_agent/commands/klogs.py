@@ -20,7 +20,22 @@ def cmd_klogs(
     provider: str | None,
     model: str | None,
     debug_patterns: bool,
+    agent_mode: bool = False,
 ) -> None:
+    if agent_mode:
+        from sre_agent.agent.loop import run_agent
+        from sre_agent.render.rich_renderer import run_chat_loop
+        from rich.markdown import Markdown
+        config = AgentConfig(provider=provider, model=model)
+        try:
+            report = run_agent(config=config, target=f"pod/{pod}", namespace=namespace, since=since)
+        except RuntimeError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1)
+        console.print(Markdown(report))
+        run_chat_loop(initial_analysis=report, config=config)
+        return
+
     console.print(f"[dim]Collecting logs: pod={pod}, namespace={namespace}, since={since}[/dim]")
 
     command_result = collect_pod_logs(

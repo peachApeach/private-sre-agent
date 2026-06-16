@@ -45,7 +45,9 @@ def _print_help() -> None:
     c.print("  [cyan]--provider TEXT[/cyan]       LLM: ollama(기본) | openai | anthropic | openai-compat")
     c.print("  [cyan]--model TEXT[/cyan]          모델 이름. 생략 시 provider 기본 모델")
     c.print("  [cyan]--no-llm[/cyan]              LLM 없이 rule 기반 패턴 분석만 실행")
+    c.print("  [cyan]--agent[/cyan]               에이전트 모드. LLM이 kubectl을 직접 호출해 자율 조사")
     c.print("  [dim]예: sre-agent klogs my-pod -n prod --since 1h --provider openai --model gpt-4o[/dim]")
+    c.print("  [dim]예: sre-agent klogs my-pod --agent --provider anthropic[/dim]")
 
     c.print("\n[bold]inspect[/bold] POD")
     c.print("  [cyan]POD[/cyan]                   점검할 Pod 이름 [required]")
@@ -56,8 +58,10 @@ def _print_help() -> None:
     c.print("  [cyan]--provider TEXT[/cyan]       LLM: ollama(기본) | openai | anthropic | openai-compat")
     c.print("  [cyan]--model TEXT[/cyan]          모델 이름. 생략 시 provider 기본 모델")
     c.print("  [cyan]--no-llm[/cyan]              LLM 없이 rule 기반 패턴 분석만 실행")
+    c.print("  [cyan]--agent[/cyan]               에이전트 모드. LLM이 kubectl을 직접 호출해 자율 조사")
     c.print("  [cyan]--json[/cyan]                결과를 JSON으로 출력")
     c.print("  [dim]예: sre-agent inspect my-pod -n prod --provider anthropic --model claude-sonnet-4-6[/dim]")
+    c.print("  [dim]예: sre-agent inspect my-pod --agent --provider anthropic[/dim]")
 
     c.print("\n[bold]inspect-deploy[/bold] DEPLOYMENT")
     c.print("  [cyan]DEPLOYMENT[/cyan]            점검할 Deployment 이름 [required]")
@@ -67,8 +71,10 @@ def _print_help() -> None:
     c.print("  [cyan]--provider TEXT[/cyan]       LLM: ollama(기본) | openai | anthropic | openai-compat")
     c.print("  [cyan]--model TEXT[/cyan]          모델 이름. 생략 시 provider 기본 모델")
     c.print("  [cyan]--no-llm[/cyan]              LLM 없이 rule 기반 패턴 분석만 실행")
+    c.print("  [cyan]--agent[/cyan]               에이전트 모드. LLM이 kubectl을 직접 호출해 자율 조사")
     c.print("  [cyan]--json[/cyan]                결과를 JSON으로 출력")
     c.print("  [dim]예: sre-agent inspect-deploy my-service -n prod --provider ollama --model qwen2.5:7b[/dim]")
+    c.print("  [dim]예: sre-agent inspect-deploy my-service --agent --provider anthropic[/dim]")
 
     c.print("\n[bold]config[/bold] SUBCOMMAND")
     c.print("  [cyan]show[/cyan]                  현재 설정 파일(~/.sre-agent.yaml) 내용 출력")
@@ -105,6 +111,7 @@ def raise_exit():
 
 _PROVIDER_HELP = "LLM provider. ollama(기본) | openai | openai-compat | anthropic. 전체 목록: sre-agent providers"
 _MODEL_HELP = "사용할 모델 이름. 생략 시 provider 기본 모델 사용. 기본 모델 목록: sre-agent providers"
+_AGENT_HELP = "에이전트 모드. LLM이 kubectl tool을 직접 호출해 자율 조사. openai/anthropic/openai-compat만 지원."
 
 
 @app.command()
@@ -209,6 +216,7 @@ def klogs(
     provider: str | None = typer.Option(None, "--provider", help=_PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", help=_MODEL_HELP),
     debug_patterns: bool = typer.Option(False, "--debug-patterns", help="정규화된 raw 로그 패턴 그룹 출력."),
+    agent: bool = typer.Option(False, "--agent", help=_AGENT_HELP),
 ) -> None:
     """kubectl logs로 Pod 로그를 수집하고 분석합니다."""
     cmd_klogs(
@@ -221,6 +229,7 @@ def klogs(
         provider=provider,
         model=model,
         debug_patterns=debug_patterns,
+        agent_mode=agent,
     )
 
 
@@ -236,6 +245,7 @@ def inspect(
     debug_patterns: bool = typer.Option(False, "--debug-patterns", help="정규화된 raw 로그 패턴 그룹 출력."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Pod 상태 테이블, 이벤트, 전체 로그 분석 상세 출력."),
     json_output: bool = typer.Option(False, "--json", help="결과를 JSON으로 출력."),
+    agent: bool = typer.Option(False, "--agent", help=_AGENT_HELP),
 ) -> None:
     """Pod 상태, 이벤트, 현재/이전 로그를 종합 점검합니다."""
     cmd_inspect(
@@ -249,6 +259,7 @@ def inspect(
         debug_patterns=debug_patterns,
         verbose=verbose,
         json_output=json_output,
+        agent_mode=agent,
     )
 
 
@@ -262,6 +273,7 @@ def inspect_deploy(
     model: str | None = typer.Option(None, "--model", help=_MODEL_HELP),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="전체 로그 패턴 분석 추가 출력."),
     json_output: bool = typer.Option(False, "--json", help="결과를 JSON으로 출력."),
+    agent: bool = typer.Option(False, "--agent", help=_AGENT_HELP),
 ) -> None:
     """Deployment에 속한 Pod 전체를 종합 점검합니다."""
     cmd_inspect_deploy(
@@ -273,6 +285,7 @@ def inspect_deploy(
         model=model,
         verbose=verbose,
         json_output=json_output,
+        agent_mode=agent,
     )
 
 

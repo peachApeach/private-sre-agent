@@ -30,7 +30,22 @@ def cmd_inspect_deploy(
     model: str | None,
     verbose: bool,
     json_output: bool,
+    agent_mode: bool = False,
 ) -> None:
+    if agent_mode:
+        from sre_agent.agent.loop import run_agent
+        from sre_agent.render.rich_renderer import run_chat_loop
+        from rich.markdown import Markdown
+        config = AgentConfig(provider=provider, model=model)
+        try:
+            report = run_agent(config=config, target=f"deploy/{deployment}", namespace=namespace, since=since)
+        except RuntimeError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1)
+        console.print(Markdown(report))
+        run_chat_loop(initial_analysis=report, config=config)
+        return
+
     if not json_output:
         console.print(f"[dim]Deployment 점검 중: deploy={deployment}, namespace={namespace}, since={since}[/dim]")
 
