@@ -7,14 +7,17 @@ def build_diagnosis_report(analysis: dict) -> dict:
         if item.get("severity") == "high"
     ]
 
+    cat_set = {item["category"] for item in categories}
     summary_parts = []
-    if any(item["category"] == "DB connection pool timeout" for item in categories):
-        summary_parts.append("payment-api에서 DB connection pool timeout이 가장 많이 관측되었습니다")
-    if any(item["category"] == "Redis connection failure" for item in categories):
+
+    if "DB connection pool timeout" in cat_set:
+        summary_parts.append("DB connection pool timeout이 가장 많이 관측되었습니다")
+    if "Redis connection failure" in cat_set:
         summary_parts.append("Redis 연결 실패가 함께 발생했습니다")
-    has_java_oom = any(item["category"] == "Java OutOfMemoryError" for item in categories)
-    has_k8s_oom = any(item["category"] == "Kubernetes OOMKilled" for item in categories)
-    has_backoff = any(item["category"] == "Kubernetes BackOff restarting container" for item in categories)
+
+    has_java_oom = "Java OutOfMemoryError" in cat_set
+    has_k8s_oom = "Kubernetes OOMKilled" in cat_set
+    has_backoff = "Kubernetes BackOff restarting container" in cat_set
 
     if has_java_oom and has_k8s_oom:
         summary_parts.append(
@@ -33,8 +36,8 @@ def build_diagnosis_report(analysis: dict) -> dict:
         summary_parts.append(
             "BackOff 신호가 관측되어 컨테이너 재시작 또는 실패 이벤트 여부를 확인해야 합니다"
         )
-    if any(item["category"] == "Downstream failure from payment-api" for item in categories):
-        summary_parts.append("order-api 오류는 payment-api 실패 응답의 downstream 영향일 수 있습니다")
+    if "Downstream failure from payment-api" in cat_set:
+        summary_parts.append("downstream 서비스 오류는 upstream API 실패 응답의 영향일 수 있습니다")
 
     if not summary_parts:
         summary = "주의가 필요한 로그 신호가 관측되었습니다."
