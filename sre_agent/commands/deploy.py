@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import typer
 from rich.console import Console
@@ -19,6 +20,27 @@ from sre_agent.harness.redactor import redact
 from sre_agent.render.rich_renderer import render_analysis_result, render_compact_deploy_result
 
 console = Console()
+
+
+def _collect_pod_logs_parallel(
+    pod_name: str,
+    namespace: str,
+    since: str,
+) -> dict:
+    """current + previous 로그를 병렬로 수집해 반환한다."""
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        fut_current = ex.submit(collect_pod_logs, pod_name, namespace, since, None, False)
+        fut_prev = ex.submit(collect_pod_logs, pod_name, namespace, since, None, True)
+        current_result = fut_current.result()
+        prev_result = fut_prev.result()
+
+    current_logs = current_result.stdout if current_result.returncode == 0 else ""
+    previous_logs = prev_result.stdout if prev_result.returncode == 0 else ""
+    return {
+        "current": current_logs,
+        "previous": previous_logs,
+        "previous_available": bool(previous_logs.strip()),
+    }
 
 
 def cmd_inspect_deploy(
@@ -80,6 +102,23 @@ def cmd_inspect_deploy(
     pods_json = parse_json(pods_result.stdout)
     pod_items = pods_json.get("items", [])
 
+    # pod별 로그를 병렬 수집 (pod당 current+previous 동시 실행)
+    with ThreadPoolExecutor(max_workers=min(len(pod_items), 8)) as executor:
+        futures = {
+            executor.submit(
+                _collect_pod_logs_parallel,
+                pod_item.get("metadata", {}).get("name"),
+                namespace,
+                since,
+            ): pod_item
+            for pod_item in pod_items
+        }
+        logs_by_pod: dict[str, dict] = {}
+        for fut in as_completed(futures):
+            pod_item = futures[fut]
+            pod_name = pod_item.get("metadata", {}).get("name")
+            logs_by_pod[pod_name] = fut.result()
+
     all_logs: list[str] = []
     pod_summaries: list[dict] = []
     all_event_signals: list[dict] = []
@@ -105,21 +144,18 @@ def cmd_inspect_deploy(
             if reason:
                 break
 
-        logs_result = collect_pod_logs(pod=pod_name, namespace=namespace, since=since, previous=False)
-        if logs_result.returncode == 0 and logs_result.stdout.strip():
-            all_logs.append(logs_result.stdout)
-
-        prev_result = collect_pod_logs(pod=pod_name, namespace=namespace, since=since, previous=True)
-        previous_logs_available = prev_result.returncode == 0 and bool(prev_result.stdout.strip())
-        if previous_logs_available:
-            all_logs.append(prev_result.stdout)
+        pod_logs = logs_by_pod.get(pod_name, {})
+        if pod_logs.get("current"):
+            all_logs.append(pod_logs["current"])
+        if pod_logs.get("previous"):
+            all_logs.append(pod_logs["previous"])
 
         pod_summaries.append({
             "name": pod_name,
             "ready": ready,
             "restart_count": pod_state.get("total_restart_count", 0),
             "reason": reason,
-            "previous_logs_available": previous_logs_available,
+            "previous_logs_available": pod_logs.get("previous_available", False),
             "event_signals": pod_events_analysis.get("signals", []),
         })
 
@@ -160,15 +196,13 @@ def cmd_inspect_deploy(
     elif not no_llm and redacted.strip():
         from sre_agent.report.diagnosis import build_diagnosis_report
         from sre_agent.render.rich_renderer import _build_rule_context, run_chat_loop
-        from rich.console import Console
         from rich.markdown import Markdown
-        _console = Console()
-        _console.print("\n[bold]AI 분석[/bold]\n")
+        console.print("\n[bold]AI 분석[/bold]\n")
         try:
             diagnosis = build_diagnosis_report(combined_log_result)
             rule_context = _build_rule_context(diagnosis)
             llm_analysis = config.analyze_logs(logs=redacted, context=rule_context)
-            _console.print(Markdown(llm_analysis))
+            console.print(Markdown(llm_analysis))
             run_chat_loop(initial_analysis=llm_analysis, config=config)
         except Exception as exc:
-            _console.print(f"[red]LLM 분석 실패: {exc}[/red]")
+            console.print(f"[red]LLM 분석 실패: {exc}[/red]")

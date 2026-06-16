@@ -341,4 +341,4 @@ sre_agent/
 - Deployment rollout history 분석 추가
 - Prometheus / Loki / OpenSearch 연동
 - `inspect --json` 결과를 Slack bot / 웹 UI와 연동
-- deploy.py pod 로그 수집 병렬화 (ThreadPoolExecutor)
+- ~~deploy.py pod 로그 수집 병렬화~~ (완료)
