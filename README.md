@@ -310,7 +310,8 @@ sre_agent/
 │   ├── tools.py            # kubectl tool schema + 실행 함수
 │   └── loop.py             # OpenAI / Anthropic tool-use 루프
 ├── render/
-│   └── rich_renderer.py    # Rich 렌더링 + 대화 루프
+│   ├── rich_renderer.py    # Rich 렌더링 (테이블, 진단 요약)
+│   └── llm_runner.py       # LLM 분석 실행 + 대화 루프
 ├── llm/
 │   ├── prompts.py
 │   └── providers/
