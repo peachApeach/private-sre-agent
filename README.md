@@ -4,12 +4,13 @@ Kubernetes 운영 환경에서 로그, Pod 상태, Events, Deployment 상태를 
 
 ## 주요 기능
 
-- stdin 로그 분석
+- 로그 파일 / stdin 분석
 - `kubectl logs` 기반 Pod 로그 분석
 - Pod 상태, Events, current/previous logs 종합 점검
 - Deployment 기준 관련 Pod 전체 점검
 - Rule 기반 known/unknown 장애 신호 분류
 - **LLM 직접 분석** — 원본 로그를 LLM이 직접 보고 rule이 놓친 패턴까지 분석
+- **에이전트 모드** (`--agent`) — LLM이 kubectl tool을 직접 호출해 스스로 조사 후 리포트
 - **대화 모드** — 분석 후 자동 진입, 후속 질문 가능 (`quit`으로 종료)
 - 민감정보 마스킹 (redaction)
 - 한글 compact 리포트 출력
@@ -42,16 +43,17 @@ sre-agent config           # 기본값 설정 (show / set / unset)
 
 ## 사용 예시
 
-### 1. stdin 로그 분석
+### 1. 로그 파일 분석
 
 ```bash
+sre-agent analyze app.log
 cat app.log | sre-agent analyze
 ```
 
 LLM 없이 rule 분석만:
 
 ```bash
-cat app.log | sre-agent analyze --no-llm
+sre-agent analyze app.log --no-llm
 ```
 
 ### 2. Pod 로그 분석
@@ -88,11 +90,43 @@ Deployment에 속한 Pod 전체를 한 번에 점검합니다.
 sre-agent inspect-deploy <deployment-name> -n <namespace> --since 30m
 ```
 
+### 5. 에이전트 모드 (`--agent`)
+
+LLM이 `kubectl` tool을 직접 호출해 스스로 조사하고 최종 리포트를 작성합니다.
+기존 파이프라인(수집 → 분석 → LLM 요약)과 달리, LLM이 필요한 정보를 스스로 판단해 추가 조회합니다.
+
+```bash
+sre-agent inspect <pod-name> --agent
+sre-agent inspect-deploy <deployment-name> --agent
+sre-agent klogs <pod-name> --agent
+```
+
+흐름 예시:
+
+```
+sre-agent inspect my-pod --agent --provider anthropic
+  → LLM: get_pod_status(my-pod) 호출
+  → LLM: get_pod_logs(my-pod) 호출
+  → LLM: get_events(default) 호출
+  → LLM: "OOM 패턴 발견, DB pod도 확인" → get_pod_logs(db-pod) 호출
+  → LLM: 최종 리포트 작성
+  → 대화 모드 자동 진입
+```
+
+사용 가능한 kubectl tool:
+
+| tool | 설명 |
+|------|------|
+| `get_pod_logs` | `kubectl logs` (current / previous 선택 가능) |
+| `get_pod_status` | `kubectl get pod -o json` (phase, restartCount 등) |
+| `get_events` | `kubectl get events` (BackOff, OOMKilled 등) |
+| `get_deployment` | `kubectl get deploy -o json` (replicas, conditions 등) |
+
+> **주의:** 에이전트 모드는 tool use를 지원하는 `openai` / `anthropic` / `openai-compat` provider에서만 동작합니다. `ollama`는 지원하지 않습니다.
+
 ## LLM 설정
 
-### 동작 방식
-
-LLM을 사용할 때의 흐름입니다.
+### 동작 방식 (일반 모드)
 
 ```
 로그 수집
@@ -108,12 +142,12 @@ LLM 없이 rule 분석만 원할 때는 `--no-llm`을 붙입니다.
 
 ### 지원 Provider
 
-| Provider | 값 | 필요한 환경변수 |
-|----------|----|----------------|
-| Ollama (기본) | `ollama` | 없음 (로컬 실행) |
-| OpenAI | `openai` | `OPENAI_API_KEY` |
-| Anthropic (Claude) | `anthropic` | `ANTHROPIC_API_KEY` |
-| OpenAI 호환 (vLLM, LM Studio 등) | `openai-compat` | `SRE_AGENT_BASE_URL`, `OPENAI_API_KEY` (선택) |
+| Provider | 값 | 필요한 환경변수 | 에이전트 모드 |
+|----------|----|----------------|:---:|
+| Ollama (기본) | `ollama` | 없음 (로컬 실행) | ✗ |
+| OpenAI | `openai` | `OPENAI_API_KEY` | ✓ |
+| Anthropic (Claude) | `anthropic` | `ANTHROPIC_API_KEY` | ✓ |
+| OpenAI 호환 (vLLM, LM Studio 등) | `openai-compat` | `SRE_AGENT_BASE_URL` | ✓ |
 
 ### 설정 방법
 
@@ -174,6 +208,9 @@ sre-agent inspect <pod> --provider ollama --model qwen2.5:7b
 ```bash
 export ANTHROPIC_API_KEY=your-api-key
 sre-agent inspect <pod> --provider anthropic --model claude-haiku-4-5-20251001
+
+# 에이전트 모드
+sre-agent inspect <pod> --agent --provider anthropic
 ```
 
 #### OpenAI
@@ -181,6 +218,9 @@ sre-agent inspect <pod> --provider anthropic --model claude-haiku-4-5-20251001
 ```bash
 export OPENAI_API_KEY=your-api-key
 sre-agent inspect <pod> --provider openai --model gpt-4o-mini
+
+# 에이전트 모드
+sre-agent inspect <pod> --agent --provider openai
 ```
 
 #### vLLM / LM Studio (OpenAI 호환)
@@ -192,7 +232,7 @@ sre-agent inspect <pod> --provider openai-compat --model your-model-name
 
 ## 보안 원칙
 
-- read-only kubectl 명령만 사용 (`get`, `describe`, `logs`, `events`)
+- read-only kubectl 명령만 사용 (`get`, `logs`, `events`) — 에이전트 모드에서도 동일
 - `shell=True` 미사용, 모든 kubectl 명령은 `list[str]` 형식
 - 로그는 LLM 전달 전에 반드시 redaction 수행
   - 이메일, 전화번호, Bearer token, password, 개인 식별 정보 마스킹
@@ -229,6 +269,9 @@ kubectl apply -f samples/deploy.yaml
 ```bash
 sre-agent inspect error-log-pod -n default --no-llm
 sre-agent inspect-deploy crash-loop-demo -n default --no-llm
+
+# 에이전트 모드
+sre-agent inspect error-log-pod --agent --provider anthropic
 ```
 
 정리:
@@ -248,7 +291,11 @@ sre_agent/
 │   ├── analyze.py
 │   ├── klogs.py
 │   ├── inspect.py
-│   └── deploy.py
+│   ├── deploy.py
+│   └── config_cmd.py
+├── agent/                  # 에이전트 모드
+│   ├── tools.py            # kubectl tool schema + 실행 함수
+│   └── loop.py             # OpenAI / Anthropic tool-use 루프
 ├── render/
 │   └── rich_renderer.py    # Rich 렌더링 + 대화 루프
 ├── llm/
@@ -281,3 +328,4 @@ sre_agent/
 - Deployment rollout history 분석 추가
 - Prometheus / Loki / OpenSearch 연동
 - `inspect --json` 결과를 Slack bot / 웹 UI와 연동
+- deploy.py pod 로그 수집 병렬화 (ThreadPoolExecutor)
