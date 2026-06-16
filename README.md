@@ -32,10 +32,12 @@ sre-agent --help
 ## 지원 명령
 
 ```bash
-sre-agent analyze          # stdin 로그 분석
+sre-agent analyze          # 로그 파일 / stdin 분석
 sre-agent klogs            # kubectl logs → 분석
 sre-agent inspect          # Pod 종합 점검
 sre-agent inspect-deploy   # Deployment 종합 점검
+sre-agent providers        # LLM provider 목록 확인
+sre-agent config           # 기본값 설정 (show / set / unset)
 ```
 
 ## 사용 예시
@@ -117,7 +119,22 @@ LLM 없이 rule 분석만 원할 때는 `--no-llm`을 붙입니다.
 
 **우선순위: CLI 플래그 > 환경변수 > `~/.sre-agent.yaml` > 기본값**
 
-#### CLI 플래그
+#### config 명령으로 기본값 저장 (권장)
+
+```bash
+sre-agent config set provider anthropic
+sre-agent config set model claude-haiku-4-5-20251001
+
+# 설정 확인
+sre-agent config show
+
+# 키 삭제 (기본값으로 복귀)
+sre-agent config unset model
+```
+
+저장 후에는 `--provider`/`--model` 없이 실행해도 설정값이 사용됩니다.
+
+#### CLI 플래그 (일회성 override)
 
 ```bash
 sre-agent inspect <pod> --provider anthropic --model claude-sonnet-4-6
@@ -135,7 +152,7 @@ export ANTHROPIC_API_KEY=your-api-key
 sre-agent inspect <pod>
 ```
 
-#### 설정 파일 (`~/.sre-agent.yaml`)
+#### 설정 파일 (`~/.sre-agent.yaml`) 직접 편집
 
 ```yaml
 provider: anthropic

@@ -70,6 +70,14 @@ def _print_help() -> None:
     c.print("  [cyan]--json[/cyan]                결과를 JSON으로 출력")
     c.print("  [dim]예: sre-agent inspect-deploy my-service -n prod --provider ollama --model qwen2.5:7b[/dim]")
 
+    c.print("\n[bold]config[/bold] SUBCOMMAND")
+    c.print("  [cyan]show[/cyan]                  현재 설정 파일(~/.sre-agent.yaml) 내용 출력")
+    c.print("  [cyan]set KEY VALUE[/cyan]         기본값 저장. KEY: provider | model | base_url")
+    c.print("  [cyan]unset KEY[/cyan]             기본값 삭제")
+    c.print("  [dim]예: sre-agent config set provider anthropic[/dim]")
+    c.print("  [dim]예: sre-agent config set model claude-haiku-4-5-20251001[/dim]")
+    c.print("  [dim]예: sre-agent config show[/dim]")
+
     c.print("\n[dim]provider별 환경변수 및 기본 모델 확인: sre-agent providers[/dim]\n")
 
 
