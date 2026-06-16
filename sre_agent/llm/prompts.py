@@ -1,5 +1,3 @@
-import json
-
 _MAX_LOG_CHARS = 12_000
 
 
@@ -31,27 +29,3 @@ def build_log_analysis_prompt(logs: str, rule_context: str) -> str:
 """.strip()
 
 
-def build_summary_prompt(diagnosis: dict) -> str:
-    return f"""You are a DevOps/SRE assistant. Respond ONLY in Korean (한국어). Do not use English in your response.
-
-너는 DevOps/SRE 장애 리포트를 다듬는 어시스턴트다.
-
-규칙:
-- 반드시 한국어로만 답해라. 영어 응답은 절대 금지.
-- 아래 JSON에 있는 내용만 사용한다.
-- 새로운 원인, 새로운 영향, 새로운 액션을 만들지 않는다.
-- 오타나 어색한 표현을 고친다.
-- 단정하지 말고 가능성으로 표현한다.
-- "데이터 손상", "고객 정보 손상", "제조사 문제" 같은 근거 없는 표현은 쓰지 않는다.
-- 짧고 실무적으로 작성한다.
-
-출력 형식:
-## 요약
-## 주요 신호
-## 원인 후보
-## 다음 확인 액션
-## 주의
-
-리포트 JSON:
-{json.dumps(diagnosis, ensure_ascii=False, indent=2)}
-""".strip()

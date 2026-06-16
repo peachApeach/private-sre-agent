@@ -3,9 +3,6 @@ from abc import ABC, abstractmethod
 
 class LLMProvider(ABC):
     @abstractmethod
-    def summarize(self, diagnosis: dict, model: str) -> str: ...
-
-    @abstractmethod
     def analyze_logs(self, logs: str, context: str, model: str) -> str:
         """원본 로그를 직접 분석하여 초기 진단을 반환."""
         ...

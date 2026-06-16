@@ -60,11 +60,6 @@ class AgentConfig:
             or file_cfg.get("base_url")
         )
 
-    def summarize(self, diagnosis: dict) -> str:
-        from sre_agent.llm.providers import get_provider
-        provider = get_provider(self.provider)
-        return provider.summarize(diagnosis, model=self.model)
-
     def analyze_logs(self, logs: str, context: str) -> str:
         from sre_agent.llm.providers import get_provider
         provider = get_provider(self.provider)

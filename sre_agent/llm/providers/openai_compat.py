@@ -2,7 +2,7 @@ import os
 
 from openai import OpenAI
 
-from sre_agent.llm.prompts import build_log_analysis_prompt, build_summary_prompt
+from sre_agent.llm.prompts import build_log_analysis_prompt
 from sre_agent.llm.providers.base import LLMProvider
 
 DEFAULT_MODEL = "default"
@@ -19,14 +19,6 @@ class OpenAICompatProvider(LLMProvider):
                 "예: http://localhost:8000/v1"
             )
         return OpenAI(api_key=os.getenv("OPENAI_API_KEY", "none"), base_url=base_url)
-
-    def summarize(self, diagnosis: dict, model: str = DEFAULT_MODEL) -> str:
-        prompt = build_summary_prompt(diagnosis)
-        response = self._client().chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response.choices[0].message.content.strip()
 
     def analyze_logs(self, logs: str, context: str, model: str = DEFAULT_MODEL) -> str:
         prompt = build_log_analysis_prompt(logs, context)
