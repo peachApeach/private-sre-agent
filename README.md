@@ -234,8 +234,21 @@ sre-agent inspect <pod> --provider openai-compat --model your-model-name
 
 - read-only kubectl 명령만 사용 (`get`, `logs`, `events`) — 에이전트 모드에서도 동일
 - `shell=True` 미사용, 모든 kubectl 명령은 `list[str]` 형식
+- kubectl timeout / 명령 미존재 오류는 traceback 없이 안전하게 처리
 - 로그는 LLM 전달 전에 반드시 redaction 수행
-  - 이메일, 전화번호, Bearer token, password, 개인 식별 정보 마스킹
+
+| 마스킹 대상 | 예시 | 치환값 |
+|-------------|------|--------|
+| 이메일 | `user@example.com` | `<email>` |
+| Bearer token | `Bearer eyJ...` | `Bearer <token>` |
+| JWT (단독) | `eyJhbGci...` | `<jwt>` |
+| AWS access key | `AKIAIOSFODNN7EXAMPLE` | `<aws-key>` |
+| AWS secret key | `aws_secret_access_key=...` | `<redacted>` |
+| GCP API key | `AIza...` | `<gcp-key>` |
+| 시크릿 파라미터 | `password=`, `secret=`, `api_key=`, `token=`, `auth=` | `<redacted>` |
+| IPv4 주소 | `10.0.0.5` | `<ip>` |
+| 전화번호 | `010-1234-5678` | `<phone>` |
+
 - 장애 원인은 단정하지 않고 가능성으로 표현
 - API key는 환경변수 또는 `~/.sre-agent.yaml`로 관리, 코드에 하드코딩 금지
 
